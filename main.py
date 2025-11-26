@@ -1,51 +1,62 @@
-﻿from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+﻿# main.py
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi import Request
-import json
-import os
+import os, json
+from dotenv import load_dotenv
 
-app = FastAPI()
+# load env
+load_dotenv()
 
-# static 및 templates 연결
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+from src.kb.knowledge_loader import load_all_knowledge
+from src.kb.knowledge_search import search_kb
+from src.ai.ai_client import ask_openai, summarize_text
+from src.ai.web_search import bing_search
 
+app = FastAPI(title='Sports AI Coach')
 
-# -------------------------
-# 1) 루트 웹페이지 렌더링
-# -------------------------
-@app.get("/", response_class=HTMLResponse)
-def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+app.mount('/static', StaticFiles(directory='static'), name='static')
+templates = Jinja2Templates(directory='templates')
 
+# Load KB at startup
+KB = load_all_knowledge()
 
-# -------------------------
-# 2) JSON 자동 로딩 함수
-# -------------------------
-def load_json(category: str, name: str):
-    base_path = os.path.join("data", category)
+@app.get('/', response_class=HTMLResponse)
+def index(request: Request):
+    return templates.TemplateResponse('index.html', {'request': request})
 
-    # 기본 JSON (예: data/baseball/catcher.json)
-    file_path = os.path.join(base_path, f"{name}.json")
+@app.post('/api/ask')
+async def api_ask(payload: dict):
+    # expected: { "sport": "baseball", "question": "포수 훈련법 알려줘", "user_id": "optional" }
+    sport = payload.get('sport') or ''
+    question = payload.get('question') or ''
+    if not question:
+        return JSONResponse({'error': 'question required'}, status_code=400)
 
-    # 폴더 구조가 있는 스포츠(IceHockey, yacht 등)
-    if not os.path.exists(file_path):
-        nested_dir = os.path.join(base_path, name)
-        if os.path.isdir(nested_dir):
-            file_path = os.path.join(nested_dir, "description.json")
+    # 1) try local KB search
+    matches = search_kb(KB, question)
+    if matches:
+        # take top match
+        top = matches[0]
+        answer = f\"(local KB match: {top['key']}, score={top['score']})\\n\\n{top['snippet']}\"
+        return {'source': 'local', 'answer': answer, 'matches': matches}
 
-    if not os.path.exists(file_path):
-        return {"error": "file not found"}
+    # 2) try web search (Bing) if available
+    web = None
+    try:
+        web = bing_search(question)
+    except Exception:
+        web = None
+    if web:
+        # summarize web snippets via OpenAI
+        combined = '\\n\\n'.join([f\"{w['name']}: {w['snippet']} ({w['url']})\" for w in web])
+        # ask OpenAI to synthesize
+        prompt = f\"You are an expert sports coach. A user asks: {question}. Synthesize the following web snippets into a concise answer in Korean:\\n\\n{combined}\"
+        synth = ask_openai(prompt)
+        return {'source': 'web', 'answer': synth, 'web': web}
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-# -------------------------
-# 3) API 엔드포인트
-# -------------------------
-@app.get("/api/{category}/{name}")
-def get_sports_data(category: str, name: str):
-    return load_json(category, name)
+    # 3) fallback to OpenAI directly
+    prompt = f\"You are an expert coach for sports. A user asks: {question}. Provide a concise, practical answer in Korean with 3 drills and precautions.\"
+    ai_resp = ask_openai(prompt)
+    return {'source': 'openai', 'answer': ai_resp}

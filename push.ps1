@@ -1,5 +1,4 @@
 ﻿git add .
-git commit -m "auto-update"
+git commit -m \"auto: add AI agent components\"
 git push origin master
-
-Write-Host '🚀 GitHub Push 완료!'
+Write-Host '🚀 pushed to origin/master'
