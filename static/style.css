@@ -1,9 +1,50 @@
-﻿body { font-family: Arial, Helvetica, sans-serif; background:#f6f8fa; color:#111; }
-.app { max-width:760px; margin:30px auto; background:white; padding:20px; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.08); }
-.controls { display:flex; gap:8px; margin-bottom:12px; }
-.controls select, .controls input { padding:8px; font-size:14px; flex:1; }
-.controls button { padding:8px 12px; }
-.chat { border-top:1px solid #eee; padding-top:12px; }
-.msg { padding:8px 12px; border-radius:6px; margin-bottom:8px; max-width:90%; }
-.msg.user { background:#e6f0ff; align-self:flex-end; margin-left:auto; }
-.msg.ai { background:#f1f3f5; }
+body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background-color: #f5f5f5;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+}
+
+.section {
+    margin-top: 30px;
+}
+
+input, select, button {
+    margin: 5px;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+}
+
+button {
+    background-color: #4CAF50;
+    color: white;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+#answer, #plan, #subscription {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f0f0f0;
+    border-radius: 6px;
+    white-space: pre-wrap;
+}
