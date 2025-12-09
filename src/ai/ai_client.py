@@ -1,48 +1,36 @@
-﻿# src/ai/ai_client.py
-# OpenAI wrapper + simple summarizer helper
+# src/ai/ai_client.py
 import os
-import time
-from typing import Optional
+import openai
 from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
 
-def ask_openai(prompt: str, model: str = 'gpt-4o', max_tokens: int = 600, temperature: float = 0.6) -> str:
-    if not OPENAI_API_KEY:
-        return 'OpenAI API key not set. Please add OPENAI_API_KEY to .env'
+def ask_openai(prompt: str, model: str = "gpt-3.5-turbo", max_tokens: int = 500) -> str:
+    """
+    OpenAI API를 호출해 질문에 대한 답변을 생성
+    """
     try:
-        import openai
-    except Exception:
-        return 'openai 패키지가 설치되어 있지 않습니다. requirements.txt를 확인하세요.'
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            temperature=0.7
+        )
+        answer = response.choices[0].message.content.strip()
+        return answer
+    except Exception as e:
+        print(f"OpenAI API 호출 에러: {e}")
+        return "AI 응답 생성 중 오류가 발생했습니다."
 
-    openai.api_key = OPENAI_API_KEY
-
-    for attempt in range(3):
-        try:
-            resp = openai.ChatCompletion.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": "You are an expert sports coach and concise assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=max_tokens,
-                temperature=temperature
-            )
-            text = resp['choices'][0]['message']['content'].strip()
-            return text
-        except Exception as e:
-            last_err = str(e)
-            time.sleep(1 + attempt * 2)
-    return f'OpenAI 요청 실패: {last_err}'
-
-def summarize_text(text: str, max_chars: int = 800) -> str:
-    # 간단한 요약을 위해 OpenAI 호출(선택). 여기서는 텍스트가 길면 자름.
-    if len(text) <= max_chars:
-        return text
-    prompt = f\"\"\"다음 내용을 간결하게 한국어로 요약해줘 (최대 {max_chars}자):
----
-{text}
-\"\"\"
+def summarize_content(content: str, max_chars: int = 200) -> str:
+    """
+    내용을 간결하게 한국어로 요약
+    """
+    # Triple-quote f-string 올바르게 사용
+    prompt = f"""다음 내용을 간결하게 한국어로 요약해줘 (최대 {max_chars}자):
+{content}
+"""
     return ask_openai(prompt)
