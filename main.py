@@ -37,7 +37,7 @@ async def api_ask(payload: dict):
     matches = search_kb(KB, question)
     if matches:
         top = matches[0]
-        answer = f\"(local KB match: {top['key']}, score={top['score']})\\n\\n{top['snippet']}\"
+     answer = f"(local KB match: {top['key']}, score={top['score']})\n\n{top['snippet']}"
         return {'source':'local','answer':answer,'matches':matches}
     # web fallback
     web = None
