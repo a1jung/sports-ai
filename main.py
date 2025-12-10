@@ -4,6 +4,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+# CORS 설정 (모든 출처 허용, Render용)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,3 +61,4 @@ async def chat(request: Request):
 @app.get("/")
 def root():
     return FileResponse("static/index.html")
+
