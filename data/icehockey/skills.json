@@ -1,1 +1,11 @@
-{}
+{
+  "skills_overview": "아이스하키 선수에게 필요한 공통 스킬과 능력.",
+  "skills": [
+    {"name": "스케이팅 속도", "description": "빠른 이동과 방향 전환 능력."},
+    {"name": "민첩성", "description": "콘, 드릴을 통한 민첩성 향상."},
+    {"name": "체력", "description": "지구력과 폭발력 모두 필요."},
+    {"name": "코어 안정성", "description": "밸런스와 반응 속도 향상."},
+    {"name": "반사 신경", "description": "공과 상황 변화에 즉각 대응."},
+    {"name": "유연성", "description": "넓은 범위 움직임과 부상 방지."}
+  ]
+}
