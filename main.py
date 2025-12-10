@@ -1,82 +1,55 @@
-# main.py (Jinja2 제거, JSON 중심)
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-import os
-from dotenv import load_dotenv
+﻿from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
-# Load env
-load_dotenv()
+app = FastAPI()
 
-from src.kb.knowledge_loader import load_all_knowledge
-from src.kb.knowledge_search import search_kb
-from src.ai.ai_client import ask_openai
-from src.ai.web_search import bing_search
-from src.planner import generate_plan
-from src.subscription import create_subscription, cancel_subscription, check_subscription
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-app = FastAPI(title='Sports AI Coach')
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Load KB at startup
-KB = load_all_knowledge()
+knowledge_base = {
+    "요트": "요트는 바람의 힘을 이용해 이동하며 세일 트림과 밸런스가 핵심입니다.",
+    "체조": "기계체조는 신체조절능력, 코어 안정성, 유연성이 매우 중요합니다.",
+    "야구": "야구 투수는 회전근개 안정성과 하체 힘 전달이 핵심입니다.",
+    "아이스하키": "아이스하키는 공격·수비·골리 포지션이 있으며 빠른 스케이팅이 핵심입니다."
+}
 
-@app.get('/')
-def index():
-    return {'message': 'Sports AI Coach API is running', 'routes': ['/api/ask', '/api/plan', '/api/subscribe', '/api/subscription_status']}
+def make_recommendations(text):
+    if "요트" in text:
+        return ["요트 세일 트림 방법", "레이저 요트 팁", "요트 바람 읽는 법"]
+    if "체조" in text:
+        return ["유연성 루틴", "평행봉 팁", "체조 기본 훈련"]
+    if "야구" in text:
+        return ["하체 강화 루틴", "투수 어깨 안 아프게 던지는 법", "구속 올리는 법"]
+    if "아이스하키" in text:
+        return ["하키 스케이팅 팁", "공격 패턴", "수비 움직임"]
+    return ["요트는 어떻게 타?", "체조 루틴 추천", "야구 훈련 설명", "아이스하키 포지션 설명"]
 
-@app.post('/api/ask')
-async def api_ask(payload: dict):
-    question = payload.get('question') or ''
-    sport = payload.get('sport') or ''
-    if not question:
-        return JSONResponse({'error':'question required'}, status_code=400)
-    
-    # Local KB 검색
-    matches = search_kb(KB, question)
-    if matches:
-        top = matches[0]
-        answer = f"(local KB match: {top['key']}, score={top['score']})\n\n{top['snippet']}"
-        return {'source':'local','answer':answer,'matches':matches}
+def generate_answer(text):
+    for key in knowledge_base:
+        if key in text:
+            return knowledge_base[key]
+    return "아직 해당 질문에 대한 전문 지식이 부족합니다."
 
-    # Web 검색 fallback
-    web = None
-    try:
-        web = bing_search(question)
-    except Exception:
-        web = None
-    if web:
-        combined = '\n\n'.join([f"{w['name']}: {w['snippet']} ({w['url']})" for w in web])
-        prompt = f"You are an expert sports coach. User asks: {question}. Synthesize the following web snippets into a concise answer in Korean:\n\n{combined}"
-        synth = ask_openai(prompt)
-        return {'source':'web','answer':synth,'web':web}
+@app.post("/chat")
+async def chat(request: Request):
+    data = await request.json()
+    user_text = data.get("message", "")
+    ai_answer = generate_answer(user_text)
+    recommendations = make_recommendations(user_text)
 
-    # OpenAI fallback
-    prompt = f"You are an expert coach for sports. A user asks: {question}. Provide a concise, practical answer in Korean with 3 drills and precautions."
-    ai_resp = ask_openai(prompt)
-    return {'source':'openai','answer':ai_resp}
+    return JSONResponse({
+        "answer": ai_answer,
+        "recommendations": recommendations
+    })
 
-@app.post('/api/plan')
-async def api_plan(payload: dict):
-    user_id = payload.get('user_id') or 'anonymous'
-    sport = payload.get('sport') or ''
-    goal = payload.get('goal') or ''
-    level = payload.get('level') or ''
-    premium = check_subscription(user_id)
-    plan = generate_plan(sport, goal, level, premium=premium)
-    if not premium:
-        plan['premium_note'] = '프리미엄(월 1,000원) 가입 시 추가 AI 보강 및 맞춤 분석 제공됩니다.'
-    return {'source':'planner','plan':plan, 'premium':premium}
-
-@app.post('/api/subscribe')
-async def api_subscribe(payload: dict):
-    user_id = payload.get('user_id') or None
-    if not user_id:
-        return JSONResponse({'error':'user_id required'}, status_code=400)
-    info = create_subscription(user_id)
-    return {'status':'created','info':info}
-
-@app.get('/api/subscription_status')
-async def api_subscription_status(user_id: str = None):
-    if not user_id:
-        return JSONResponse({'error':'user_id required'}, status_code=400)
-    ok = check_subscription(user_id)
-    return {'user_id':user_id,'active':ok}
+@app.get("/")
+def root():
+    return FileResponse("static/index.html")
